@@ -23,11 +23,26 @@ const wss = new WebSocket.Server({ server });
 
 
 //ws 통신 대기
-function handleConnection(socket) {
-    console.log(socket);
-}
-wss.on("connection", handleConnection);
+// function handleConnection(socket) { //서버 소켓
+//     console.log(socket);
+// }
+// wss.on("connection", handleConnection);
 
+// wss.on("connection", (socket) =>{ //익명함수 선언방식
+//     console.log(socket);
+// });
+
+
+const sockets = []; //소켓들 전부 관리
+wss.on("connection", (socket) => {
+    sockets.push(socket);
+    console.log("새로운 연결");
+    socket.on("close", () => console.log("브라우저와 연결해제"));
+    socket.on("message", (message) => {
+      sockets.forEach((new_socket)=> new_socket.send(message.toString())); //노마드에서 그냥 메세지지만 버전오류로 toString하면 blob대신 메세지 전달됨
+    });
+    socket.send("서버와 연결하였습니다."); //브라우저에 전송하는 메세지
+  });
 
 
 server.listen(3000, handleListen);
