@@ -77,3 +77,7 @@ app.listen(3000, handleListen);
 2.nodemon.js 내용추가
 "ignore":["src/public/*"], 
 이것은 해당 폴더의 내용물은 파일내용이 바뀌어도 nodemon에 실시간 적용x
+
+
+
+npm i localtunnel 설치 후 lt --port 3000 수행하면 일시적인 도메인 획득가능

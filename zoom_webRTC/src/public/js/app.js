@@ -12,7 +12,7 @@ let muted = false;
 let cameraOff = false;
 let roomName;
 let myPeerConnection; //상호간의 연락을 위한
-
+let myDataChannel; //데이터채널 1:1 
 async function getCameras() {
     try {
         const devices = await navigator.mediaDevices.enumerateDevices();//사용자의 미디어 디바이스 목록 가져온다.
@@ -88,6 +88,13 @@ function handleCameraClick() {
 
 async function handleCameraChange() {
     await getMedia(camerasSelect.value);
+    if (myPeerConnection) { //peer통신가능하다면
+        const videoTrack = myStream.getVideoTracks()[0]; //선택한 비디오 트랙
+        const videoSender = myPeerConnection  //비디오 변경되면 스트림 새로 생성후 대체해야 한다.
+            .getSenders()
+            .find((sender) => sender.track.kind === "video");
+        videoSender.replaceTrack(videoTrack);
+    }
 }
 //getMedia(); 이제 ui에서 불러오므로 생략
 muteBtn.addEventListener("click", handleMuteClick);
@@ -121,6 +128,11 @@ welcomeForm.addEventListener("submit", handleWelcomeSubmit);
 // Socket Code
 
 socket.on("welcome", async () => {
+    //데이터채널 생성 최초생성자
+    myDataChannel = myPeerConnection.createDataChannel("chat");
+    myDataChannel.addEventListener("message", (event) => console.log(event.data));
+    console.log("made data channel");
+
     const offer = await myPeerConnection.createOffer();
     myPeerConnection.setLocalDescription(offer);
     console.log("sent the offer");
@@ -128,6 +140,15 @@ socket.on("welcome", async () => {
 });
 
 socket.on("offer", async (offer) => {
+    //데이터채널 두번째 들어온사람
+    myPeerConnection.addEventListener("datachannel", (event) => {
+        myDataChannel = event.channel;
+        myDataChannel.addEventListener("message", (event) =>
+          console.log(event.data)
+        );
+      });
+
+
     console.log("received the offer");
     myPeerConnection.setRemoteDescription(offer);
     const answer = await myPeerConnection.createAnswer();
@@ -144,12 +165,12 @@ socket.on("answer", (answer) => {
 socket.on("ice", (ice) => {
     console.log("received candidate");
     myPeerConnection.addIceCandidate(ice);
-  });
+});
 
 // RTC Code
 
 function makeConnection() {
-    myPeerConnection = new RTCPeerConnection();
+    myPeerConnection = new RTCPeerConnection(); // {stun}서버 등록해야 같은 공용네트워크 이외의 다른 네트워크간의 통신가능
     myPeerConnection.addEventListener("icecandidate", handleIce);
     myPeerConnection.addEventListener("addstream", handleAddStream);
     myStream
@@ -160,10 +181,10 @@ function makeConnection() {
 function handleIce(data) {
     console.log("sent candidate");
     socket.emit("ice", data.candidate, roomName);
-  }
-  
-  function handleAddStream(data) {
-    console.log("peer가 보낸 이벤트(스트림)-> 이걸로 나랑 연락할 수 있어",data);
+}
+
+function handleAddStream(data) {
+    console.log("peer가 보낸 이벤트(스트림)-> 이걸로 나랑 연락할 수 있어", data);
     const peerFace = document.getElementById("peerFace");
     peerFace.srcObject = data.stream;
-  }
+}
